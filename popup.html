@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Message Extractor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>WhatsApp Extractor</h1>
+    </header>
+
+    <div class="chat-info">
+      <div class="chat-name" id="chatName">Loading...</div>
+    </div>
+
+    <div class="message-section">
+      <div class="message-label">Latest Message:</div>
+      <div class="message-display" id="latestMessage">Loading...</div>
+    </div>
+
+    <div class="reply-section">
+      <div class="reply-label">Reply:</div>
+      <textarea
+        id="replyInput"
+        placeholder="Type your reply here..."
+        rows="3"
+      ></textarea>
+      <button id="sendButton" class="send-button">Send Reply</button>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
