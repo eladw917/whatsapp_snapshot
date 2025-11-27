@@ -12,23 +12,25 @@
       <h1>WhatsApp Extractor</h1>
     </header>
 
-    <div class="chat-info">
-      <div class="chat-name" id="chatName">Loading...</div>
-    </div>
-
     <div class="message-section">
-      <div class="message-label">Latest Message:</div>
+      <div class="relative-date" id="relativeDate"></div>
       <div class="message-display" id="latestMessage">Loading...</div>
+      <div class="reply-counter" id="replyCounter"></div>
     </div>
 
     <div class="reply-section">
-      <div class="reply-label">Reply:</div>
-      <textarea
-        id="replyInput"
-        placeholder="Type your reply here..."
-        rows="3"
-      ></textarea>
-      <button id="sendButton" class="send-button">Send Reply</button>
+      <div class="reply-input-container">
+        <textarea
+          id="replyInput"
+          placeholder="Type your reply here..."
+          rows="1"
+        ></textarea>
+        <button id="sendButton" class="send-button">
+          <svg xmlns="http://www.w3.org/2000/svg" height="18px" viewBox="0 -960 960 960" width="18px" fill="#ffffff">
+            <path d="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="status" id="status"></div>
