@@ -7,6 +7,7 @@ let relativeDateElement;
 let replyInput;
 let sendButton;
 let statusElement;
+let unreadIndicatorElement;
 
 // Language detection patterns for RTL vs LTR languages
 const RTL_LANGUAGES = [
@@ -60,14 +61,17 @@ function getTextAlignmentClass(text) {
 
 // Function to show status messages
 function showStatus(message, type = 'info') {
+  if (!statusElement) return; // Status element removed, silently ignore
   statusElement.textContent = message;
   statusElement.className = `status ${type}`;
 
   // Clear status after 3 seconds for non-error messages
   if (type !== 'error') {
     setTimeout(() => {
-      statusElement.textContent = '';
-      statusElement.className = 'status';
+      if (statusElement) {
+        statusElement.textContent = '';
+        statusElement.className = 'status';
+      }
     }, 3000);
   }
 }
@@ -242,7 +246,15 @@ function concatenateRecentMessages(receivedMessages, sentMessages) {
 
     // Check if current message is within 2 minutes of the previous message
     const timeDiff = getTimeDifferenceInMinutes(currentMessage, previousMessage);
-    if (timeDiff === null || timeDiff > 2) {
+    if (timeDiff === null) {
+      // If time difference can't be calculated, check if messages are consecutive (index difference of 1)
+      // This handles cases where date/time extraction failed
+      const indexDiff = previousMessage.index - currentMessage.index;
+      if (indexDiff > 1) {
+        break; // Not consecutive, stop concatenating
+      }
+      // If consecutive (index diff is 1), continue concatenating
+    } else if (timeDiff > 2) {
       break; // More than 2 minutes apart, stop concatenating
     }
 
@@ -289,6 +301,52 @@ function concatenateRecentMessages(receivedMessages, sentMessages) {
   };
 }
 
+// Function to update unread indicator
+async function updateUnreadIndicator() {
+  try {
+    // First try to get from storage (set by background worker)
+    const result = await chrome.storage.local.get(['unreadCount']);
+    let unreadCount = result.unreadCount || 0;
+
+    // Also try to get directly from content script for real-time updates
+    try {
+      const tab = await getWhatsAppTab();
+      if (tab) {
+        const scriptAvailable = await ensureContentScript(tab);
+        if (scriptAvailable) {
+          const response = await chrome.tabs.sendMessage(tab.id, {
+            action: 'getUnreadCount'
+          });
+          if (response && typeof response.count === 'number') {
+            unreadCount = response.count;
+            // Update storage with latest count
+            await chrome.storage.local.set({ unreadCount: unreadCount });
+          }
+        }
+      }
+    } catch (error) {
+      // If direct check fails, use stored value
+    }
+
+    // Update indicator
+    if (unreadIndicatorElement) {
+      if (unreadCount > 0) {
+        const displayText = unreadCount > 99 ? '99+' : String(unreadCount);
+        unreadIndicatorElement.textContent = `${displayText} unread`;
+        unreadIndicatorElement.style.display = 'block';
+      } else {
+        unreadIndicatorElement.textContent = '';
+        unreadIndicatorElement.style.display = 'none';
+      }
+    }
+  } catch (error) {
+    console.error('Error updating unread indicator:', error);
+    if (unreadIndicatorElement) {
+      unreadIndicatorElement.style.display = 'none';
+    }
+  }
+}
+
 // Function to request all messages from content script
 async function requestAllMessages() {
   try {
@@ -302,6 +360,8 @@ async function requestAllMessages() {
         replyCounterElement.style.display = 'none';
       }
       if (relativeDateElement) relativeDateElement.style.display = 'none';
+      // Update unread indicator
+      await updateUnreadIndicator();
       return;
     }
 
@@ -315,8 +375,13 @@ async function requestAllMessages() {
         replyCounterElement.style.display = 'none';
       }
       if (relativeDateElement) relativeDateElement.style.display = 'none';
+      // Update unread indicator
+      await updateUnreadIndicator();
       return;
     }
+
+    // Update unread indicator
+    await updateUnreadIndicator();
 
     // Send message to content script
     const response = await chrome.tabs.sendMessage(tab.id, {
@@ -384,7 +449,7 @@ async function requestAllMessages() {
 
         // Set reply counter separately
         if (sentAfterReceived > 0) {
-          replyCounterElement.textContent = `↩️ ${sentAfterReceived} message${sentAfterReceived === 1 ? '' : 's'} sent in reply`;
+          replyCounterElement.textContent = `You've replied ${sentAfterReceived} time${sentAfterReceived === 1 ? '' : 's'}`;
           replyCounterElement.style.display = 'block';
         } else {
           replyCounterElement.textContent = '';
@@ -404,8 +469,13 @@ async function requestAllMessages() {
         relativeDateElement.style.display = 'none';
       }
 
-      statusElement.textContent = '';
-      statusElement.className = 'status';
+      if (statusElement) {
+        statusElement.textContent = '';
+        statusElement.className = 'status';
+      }
+      
+      // Update unread indicator after successful message fetch
+      await updateUnreadIndicator();
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve messages') : 'No response from content script';
       showStatus(errorMessage, 'error');
@@ -413,6 +483,8 @@ async function requestAllMessages() {
       replyCounterElement.textContent = '';
       replyCounterElement.style.display = 'none';
       if (relativeDateElement) relativeDateElement.style.display = 'none';
+      // Still try to update unread indicator
+      await updateUnreadIndicator();
     }
 
   } catch (error) {
@@ -422,6 +494,8 @@ async function requestAllMessages() {
     replyCounterElement.textContent = '';
     replyCounterElement.style.display = 'none';
     relativeDateElement.style.display = 'none';
+    // Still try to update unread indicator
+    await updateUnreadIndicator();
   }
 }
 
@@ -464,8 +538,10 @@ async function requestLatestMessage() {
       replyCounterElement.textContent = '';
       replyCounterElement.style.display = 'none';
 
-      statusElement.textContent = ''; // Clear any previous error messages
-      statusElement.className = 'status';
+      if (statusElement) {
+        statusElement.textContent = ''; // Clear any previous error messages
+        statusElement.className = 'status';
+      }
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve message') : 'No response from content script';
       showStatus(errorMessage, 'error');
@@ -520,10 +596,10 @@ async function sendReply() {
     if (response.success) {
       showStatus('Message sent successfully!', 'success');
       replyInput.value = ''; // Clear input
-      // Refresh the latest message after a short delay
+      // Refresh all messages after a delay to allow DOM to update
       setTimeout(() => {
-        requestLatestMessage();
-      }, 1000);
+        requestAllMessages();
+      }, 1500);
     } else {
       const errorMessage = response.error || 'Failed to send message';
       showStatus(errorMessage, 'error');
@@ -535,20 +611,7 @@ async function sendReply() {
   }
 }
 
-// Event listeners
-if (sendButton) {
-  sendButton.addEventListener('click', sendReply);
-}
-
-// Handle Enter key in textarea to send message
-if (replyInput) {
-  replyInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      sendReply();
-    }
-  });
-}
+// Event listeners are now set up inside DOMContentLoaded
 
 // Debug function to test basic functionality
 async function runDiagnostics() {
@@ -575,7 +638,42 @@ document.addEventListener('DOMContentLoaded', () => {
   relativeDateElement = document.getElementById('relativeDate');
   replyInput = document.getElementById('replyInput');
   sendButton = document.getElementById('sendButton');
-  statusElement = document.getElementById('status');
+  statusElement = document.getElementById('status'); // May be null if element removed
+  unreadIndicatorElement = document.getElementById('unreadIndicator');
+
+  // Set up event listeners after DOM elements are initialized
+  if (sendButton) {
+    sendButton.addEventListener('click', sendReply);
+  }
+
+  // Handle Enter key in textarea to send message (WhatsApp-style behavior)
+  if (replyInput) {
+    replyInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        if (event.shiftKey) {
+          // Shift+Enter: Allow new line (default behavior)
+          // Let the textarea handle the newline insertion naturally
+          return;
+        } else {
+          // Enter: Send message
+          event.preventDefault();
+          sendReply();
+        }
+      }
+    });
+
+    // Auto-resize textarea based on content
+    replyInput.addEventListener('input', () => {
+      // Reset height to auto to get the correct scrollHeight
+      replyInput.style.height = 'auto';
+      // Set height to scrollHeight to fit content
+      const newHeight = Math.min(replyInput.scrollHeight, 80); // Max height from CSS
+      replyInput.style.height = newHeight + 'px';
+    });
+  }
+
+  // Update unread indicator immediately when popup opens
+  updateUnreadIndicator();
 
   // Run diagnostics first
   runDiagnostics().then(() => {
@@ -584,5 +682,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Auto-refresh every 5 seconds
-  setInterval(requestAllMessages, 5000);
+  setInterval(() => {
+    requestAllMessages();
+    updateUnreadIndicator();
+  }, 5000);
+
+  // Listen for storage changes (when background worker updates unread count)
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes.unreadCount) {
+      updateUnreadIndicator();
+    }
+  });
 });
