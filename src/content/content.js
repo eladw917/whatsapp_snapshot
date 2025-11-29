@@ -1,4 +1,4 @@
-// WhatsApp Web Message Extractor Content Script
+// WhatsApp ReplyPal Content Script
 
 // Selectors provided by user
 const SELECTORS = {
@@ -587,7 +587,7 @@ function sendReplyMessage(replyText) {
   }
 }
 
-// Function to extract unread message count
+// Function to extract unread message count (legacy - kept for compatibility)
 function extractUnreadCount() {
   try {
     // Check if WhatsApp Web is loaded
@@ -597,10 +597,10 @@ function extractUnreadCount() {
 
     // Primary selector provided by user
     const primarySelector = '#main > div.x1n2onr6.x1vjfegm.x1cqoux5.x14yy4lh > div > div > div.x10l6tqk.x13vifvy.x1o0tod.xupqr0c.x9f619.x78zum5.xdt5ytf.xh8yej3.x5yr21d.x6ikm8r.x1rife3k.xjbqb8w.x1ewm37j > div.x3psx0u.x12xbjc7.x1c1uobl.xrmvbpv.xh8yej3.xquzyny.xvc5jky.x11t971q > div.xh8yej3.x2b8uid.x1bu39yj.x1tiyuxx.x1nbhmlj.xquzyny.xvc5jky.x11t971q.xod5an3 > span > span';
-    
+
     // Try primary selector first
     let unreadElement = document.querySelector(primarySelector);
-    
+
     // Fallback: Try to find any element containing unread message indicators
     // Common patterns: "X unread messages", "X הודעות שלא נקראו", etc.
     if (!unreadElement) {
@@ -621,12 +621,12 @@ function extractUnreadCount() {
     }
 
     const text = unreadElement.textContent || unreadElement.innerText || '';
-    
+
     // Extract numeric value from text
     // Pattern: number followed by unread message text
     // Examples: "4 הודעות שלא נקראו", "4 unread messages", "12 unread"
     const match = text.match(/(\d+)/);
-    
+
     if (match && match[1]) {
       const count = parseInt(match[1], 10);
       if (!isNaN(count) && count >= 0) {
@@ -641,6 +641,58 @@ function extractUnreadCount() {
   }
 }
 
+// Function to check if there are any unread messages (boolean check)
+function hasUnreadMessages() {
+  try {
+    // Check if WhatsApp Web is loaded
+    if (!isWhatsAppWebLoaded()) {
+      return { hasUnread: false, error: 'WhatsApp Web not fully loaded' };
+    }
+
+    // Primary selector provided by user
+    const primarySelector = '#main > div.x1n2onr6.x1vjfegm.x1cqoux5.x14yy4lh > div > div > div.x10l6tqk.x13vifvy.x1o0tod.xupqr0c.x9f619.x78zum5.xdt5ytf.xh8yej3.x5yr21d.x6ikm8r.x1rife3k.xjbqb8w.x1ewm37j > div.x3psx0u.x12xbjc7.x1c1uobl.xrmvbpv.xh8yej3.xquzyny.xvc5jky.x11t971q > div.xh8yej3.x2b8uid.x1bu39yj.x1tiyuxx.x1nbhmlj.xquzyny.xvc5jky.x11t971q.xod5an3 > span > span';
+
+    // Try primary selector first
+    let unreadElement = document.querySelector(primarySelector);
+
+    // Fallback: Try to find any element containing unread message indicators
+    // Common patterns: "X unread messages", "X הודעות שלא נקראו", etc.
+    if (!unreadElement) {
+      // Look for elements with text containing numbers and unread-related keywords
+      const allSpans = document.querySelectorAll('span');
+      for (const span of allSpans) {
+        const text = span.textContent || span.innerText || '';
+        // Check for patterns like "4 הודעות שלא נקראו" or "4 unread messages"
+        if (text.match(/\d+\s*(הודעות שלא נקראו|unread|unread messages|mensajes no leídos|nicht gelesen|non lues|não lidas)/i)) {
+          unreadElement = span;
+          break;
+        }
+      }
+    }
+
+    if (!unreadElement) {
+      return { hasUnread: false };
+    }
+
+    const text = unreadElement.textContent || unreadElement.innerText || '';
+
+    // Extract numeric value from text
+    const match = text.match(/(\d+)/);
+
+    if (match && match[1]) {
+      const count = parseInt(match[1], 10);
+      if (!isNaN(count) && count > 0) {
+        return { hasUnread: true };
+      }
+    }
+
+    return { hasUnread: false };
+  } catch (error) {
+    console.error('Error checking for unread messages:', error);
+    return { hasUnread: false, error: error.message };
+  }
+}
+
 // Listen for messages from the popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'ping') {
@@ -650,6 +702,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'getUnreadCount') {
     const result = extractUnreadCount();
+    sendResponse(result);
+    return;
+  }
+
+  if (request.action === 'hasUnreadMessages') {
+    const result = hasUnreadMessages();
     sendResponse(result);
     return;
   }

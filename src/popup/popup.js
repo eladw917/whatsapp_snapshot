@@ -1,4 +1,4 @@
-// WhatsApp Web Message Extractor Popup Script
+// WhatsApp ReplyPal Popup Script
 
 // DOM elements - will be initialized when DOM is ready
 let latestMessageElement;
@@ -6,8 +6,24 @@ let replyCounterElement;
 let relativeDateElement;
 let replyInput;
 let sendButton;
+let emojiButton;
+let emojiPicker;
+let closeEmojiPicker;
+let emojiGrid;
 let statusElement;
-let unreadIndicatorElement;
+
+// Emoji data organized by categories
+const EMOJI_DATA = {
+  recent: ['😊', '👍', '❤️', '😂', '😍', '🤔', '👌', '🔥', '💯', '🙏'],
+  smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'],
+  people: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸', '👶', '🧒', '👦', '👧', '🧑', '👱', '👨', '🧔', '👩', '🧓', '👴', '👵', '🙍', '🙎', '🙅', '🙆', '💁', '🙋', '🧏', '🙇', '🤦', '🤷', '👮', '🕵️', '💂', '🥷', '👷', '🤴', '👸', '👳', '👲', '🧕', '🤵', '🤰', '🤱', '👼', '🎅', '🤶', '🦸', '🦹', '🧙', '🧚', '🧛', '🧜', '🧝', '🧞', '🧟', '💆', '💇', '🚶', '🧍', '🧎', '👨‍🦯', '👩‍🦯', '👨‍🦼', '👩‍🦼', '👨‍🦽', '👩‍🦽', '🏃', '💃', '🕺', '🕴️', '👯', '🧖', '🧗', '🤺', '🏇', '⛷️', '🏂', '🏌️', '🏄', '🚣', '🏊', '⛹️', '🏋️', '🚴', '🚵', '🤸', '🤼', '🤽', '🤾', '🤹', '🧘', '🛀', '🛌'],
+  nature: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦗', '🕷️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥', '🐁', '🐀', '🐿️', '🦔', '🌱', '🌿', '☘️', '🍀', '🎋', '🎍', '🌾', '🌵', '🌲', '🌳', '🌴', '🌸', '🌺', '🌻', '🌷', '🌹', '🥀', '🌼', '🌿', '🍄', '🌰', '🦋', '🐛', '🐜', '🐝', '🐞', '🐌', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐳', '🐋', '🦈', '🐊'],
+  food: ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐', '🥖', '🍞', '🥨', '🥯', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🦴', '🌭', '🍔', '🍟', '🍕', '🫓', '🥙', '🌮', '🌯', '🫔', '🥗', '🥘', '🫕', '🍝', '🍜', '🍲', '🍛', '🍣', '🍱', '🥟', '🦪', '🍤', '🍙', '🍚', '🍘', '🍥', '🥠', '🥮', '🍢', '🍡', '🍧', '🍨', '🍦', '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬', '🍫', '🍿', '🍩', '🍪', '🌰', '🥜', '🍯', '🥛', '🍼', '☕', '🫖', '🍵', '🧃', '🥤', '🧋', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🧉', '🍾'],
+  activity: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤸', '🤼', '🤽', '🤾', '🧘', '🏃', '🚶', '🧎', '🧍', '🤺', '🏇', '⛹️', '🏌️', '🏄', '🚣', '🏊', '⛹️', '🏋️', '🚴', '🚵', '🛌', '🧘', '🛀', '🛌', '🎪', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🪘', '🎷', '🎺', '🪗', '🎸', '🪕', '🎻', '🎲', '♠️', '♥️', '♦️', '♣️', '🃏', '🀄', '🎯', '🎳', '🎮', '🎰', '🧩'],
+  travel: ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛', '🚜', '🏍️', '🛵', '🚲', '🛴', '🛹', '🚏', '🛣️', '🛤️', '🛢️', '⛽', '🚨', '🚥', '🚦', '🛑', '🚧', '⚓', '⛵', '🛶', '🚤', '🛳️', '⛴️', '🛥️', '🚢', '✈️', '🛩️', '🛫', '🛬', '🪂', '💺', '🚁', '🚟', '🚠', '🚡', '🛤️', '🛣️', '🚧', '🗿', '🏛️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩', '💒', '🏛️', '⛪', '🕌', '🕍', '🕋', '⛩️', '🛕', '🕗', '🏙️', '🌆', '🌃', '🏙️', '🌉', '🌁', '🗽', '🗼', '🏰', '🏯', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '⛰️', '🏔️', '🗻', '🌋', '🗾', '🏜️', '🏕️', '⛺', '🛖', '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩', '💒', '🏛️', '⛪', '🕌', '🕍', '🕋', '⛩️', '🛕'],
+  objects: ['⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️', '🗜️', '💽', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽️', '🎞️', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️', '⏲️', '⏰', '🕰️', '⌛', '⏳', '📡', '🔋', '🔌', '💡', '🔦', '🕯️', '🪔', '🧯', '🛢️', '💸', '💵', '💴', '💶', '💷', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒️', '🛠️', '⛏️', '🔩', '⚙️', '🗜️', '⚖️', '🦯', '🔗', '⛓️', '🪝', '🧸', '🪆', '🪄', '🪅', '🪩', '🪞', '🪟', '🛗', '🪑', '🚪', '🛖', '🛏️', '🛋️', '🪑', '🚽', '🪠', '🚿', '🛁', '🪒', '🧴', '🧷', '🧹', '🧺', '🧽', '🪣', '🧼', '🪥', '🧽', '🧯', '🛒', '🚬', '⚰️', '🪦', '⚱️', '🗿', '🪧', '🚯'],
+  symbols: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❤️‍🔥', '❤️‍🩹', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚨', '🚥', '🚦', '🛑', '🚧', '🔞', '📵', '🚭', '🚯', '🚱', '🚳', '🚷', '🚸', '⛽', '🚰', '♿', '🚹', '🚺', '🚼', '🚾', '🛂', '🛃', '🛄', '🛅', '⚠️', '🚸', '🔱', '📶', '📳', '📴', '♀️', '♂️', '⚧️', '✖️', '➕', '➖', '➗', '🟰', '♾️', '‼️', '⁉️', '❓', '❔', '❕', '❗', '〰️', '💱', '💲', '⚕️', '♻️', '⚜️', '🔱', '📛', '🔰', '⭕', '✅', '☑️', '✔️', '❌', '❎', '➰', '➿', '〽️', '✳️', '✴️', '❇️', '©️', '®️', '™️', '🎵', '🎶', '➿', '🔀', '🔁', '🔂', '▶️', '⏩', '⏭️', '⏯️', '◀️', '⏪', '⏮️', '🔼', '⏫', '🔽', '⏬', '⏸️', '⏹️', '⏺️', '⏏️', '🎦', '🔅', '🔆', '📶', '📳', '📴', '♀️', '♂️', '⚧️']
+};
 
 // Language detection patterns for RTL vs LTR languages
 const RTL_LANGUAGES = [
@@ -189,6 +205,21 @@ async function testContentScriptConnection(tabId) {
   }
 }
 
+// Function to open WhatsApp Web in a new tab
+async function openWhatsAppWeb() {
+  try {
+    await chrome.tabs.create({
+      url: 'https://web.whatsapp.com',
+      active: true
+    });
+    // Close the popup after opening WhatsApp Web
+    window.close();
+  } catch (error) {
+    console.error('Error opening WhatsApp Web:', error);
+    showStatus('Failed to open WhatsApp Web. Please try manually.', 'error');
+  }
+}
+
 // Function to manually inject content script if needed
 async function ensureContentScript(tab) {
   try {
@@ -201,7 +232,7 @@ async function ensureContentScript(tab) {
     // Try to inject the content script manually
     await chrome.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ['content.js']
+      files: ['src/content/content.js']
     });
 
     // Wait a bit for the script to initialize
@@ -301,12 +332,11 @@ function concatenateRecentMessages(receivedMessages, sentMessages) {
   };
 }
 
-// Function to update unread indicator
-async function updateUnreadIndicator() {
+// Function to update unread status (for internal use only, no UI display)
+async function updateUnreadStatus() {
   try {
-    // First try to get from storage (set by background worker)
-    const result = await chrome.storage.local.get(['unreadCount']);
-    let unreadCount = result.unreadCount || 0;
+    // Check unread status directly from content script
+    let hasUnread = false;
 
     // Also try to get directly from content script for real-time updates
     try {
@@ -315,12 +345,12 @@ async function updateUnreadIndicator() {
         const scriptAvailable = await ensureContentScript(tab);
         if (scriptAvailable) {
           const response = await chrome.tabs.sendMessage(tab.id, {
-            action: 'getUnreadCount'
+            action: 'hasUnreadMessages'
           });
-          if (response && typeof response.count === 'number') {
-            unreadCount = response.count;
-            // Update storage with latest count
-            await chrome.storage.local.set({ unreadCount: unreadCount });
+          if (response && typeof response.hasUnread === 'boolean') {
+            hasUnread = response.hasUnread;
+            // Update storage with latest status
+            await chrome.storage.local.set({ hasUnread: hasUnread });
           }
         }
       }
@@ -328,24 +358,13 @@ async function updateUnreadIndicator() {
       // If direct check fails, use stored value
     }
 
-    // Update indicator
-    if (unreadIndicatorElement) {
-      if (unreadCount > 0) {
-        const displayText = unreadCount > 99 ? '99+' : String(unreadCount);
-        unreadIndicatorElement.textContent = `${displayText} unread`;
-        unreadIndicatorElement.style.display = 'block';
-      } else {
-        unreadIndicatorElement.textContent = '';
-        unreadIndicatorElement.style.display = 'none';
-      }
-    }
+    // No UI updates needed since we removed the indicator
   } catch (error) {
-    console.error('Error updating unread indicator:', error);
-    if (unreadIndicatorElement) {
-      unreadIndicatorElement.style.display = 'none';
-    }
+    console.error('Error updating unread status:', error);
   }
 }
+
+// Function removed - no background service for badge management
 
 // Function to request all messages from content script
 async function requestAllMessages() {
@@ -353,15 +372,18 @@ async function requestAllMessages() {
     const tab = await getWhatsAppTab();
 
     if (!tab) {
-      showStatus('WhatsApp Web not found. Please open WhatsApp Web in a tab.', 'error');
-      if (latestMessageElement) latestMessageElement.textContent = 'Please open WhatsApp Web';
+      showStatus('Extension is not active without a WhatsApp web opened', 'info');
+      if (latestMessageElement) latestMessageElement.textContent = 'Extension is not active without a WhatsApp web opened';
       if (replyCounterElement) {
         replyCounterElement.textContent = '';
         replyCounterElement.style.display = 'none';
       }
+      // Hide reply section when WhatsApp Web is not available
+      const replySection = document.querySelector('.reply-section');
+      if (replySection) replySection.style.display = 'none';
       if (relativeDateElement) relativeDateElement.style.display = 'none';
       // Update unread indicator
-      await updateUnreadIndicator();
+      await updateUnreadStatus();
       return;
     }
 
@@ -375,13 +397,18 @@ async function requestAllMessages() {
         replyCounterElement.style.display = 'none';
       }
       if (relativeDateElement) relativeDateElement.style.display = 'none';
+      // Hide reply section and show open WhatsApp button when content script fails
+      const replySection = document.querySelector('.reply-section');
+      if (replySection) replySection.style.display = 'none';
+      const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+      if (openWhatsAppSection) openWhatsAppSection.style.display = 'block';
       // Update unread indicator
-      await updateUnreadIndicator();
+      await updateUnreadStatus();
       return;
     }
 
     // Update unread indicator
-    await updateUnreadIndicator();
+    await updateUnreadStatus();
 
     // Send message to content script
     const response = await chrome.tabs.sendMessage(tab.id, {
@@ -455,6 +482,13 @@ async function requestAllMessages() {
           replyCounterElement.textContent = '';
           replyCounterElement.style.display = 'none';
         }
+
+        // Show reply section and hide open WhatsApp button when WhatsApp Web is available
+        const replySection = document.querySelector('.reply-section');
+        if (replySection) replySection.style.display = 'block';
+        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+        if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
+        if (relativeDateElement) relativeDateElement.style.display = 'block';
       } else {
         // For "no messages" message, default to LTR since it's in English
         latestMessageElement.innerHTML = `
@@ -466,6 +500,13 @@ async function requestAllMessages() {
         `;
         replyCounterElement.textContent = '';
         replyCounterElement.style.display = 'none';
+
+        // Show reply section and hide open WhatsApp button when WhatsApp Web is available
+        const replySection = document.querySelector('.reply-section');
+        if (replySection) replySection.style.display = 'block';
+        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+        if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
+        if (relativeDateElement) relativeDateElement.style.display = 'block';
         relativeDateElement.style.display = 'none';
       }
 
@@ -475,7 +516,7 @@ async function requestAllMessages() {
       }
       
       // Update unread indicator after successful message fetch
-      await updateUnreadIndicator();
+      await updateUnreadStatus();
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve messages') : 'No response from content script';
       showStatus(errorMessage, 'error');
@@ -484,7 +525,7 @@ async function requestAllMessages() {
       replyCounterElement.style.display = 'none';
       if (relativeDateElement) relativeDateElement.style.display = 'none';
       // Still try to update unread indicator
-      await updateUnreadIndicator();
+      await updateUnreadStatus();
     }
 
   } catch (error) {
@@ -495,7 +536,7 @@ async function requestAllMessages() {
     replyCounterElement.style.display = 'none';
     relativeDateElement.style.display = 'none';
     // Still try to update unread indicator
-    await updateUnreadIndicator();
+    await updateUnreadStatus();
   }
 }
 
@@ -505,10 +546,14 @@ async function requestLatestMessage() {
     const tab = await getWhatsAppTab();
 
     if (!tab) {
-      showStatus('WhatsApp Web not found. Please open WhatsApp Web in a tab.', 'error');
-      latestMessageElement.textContent = 'Please open WhatsApp Web';
+      showStatus('Extension is not active without a WhatsApp web opened', 'info');
+      latestMessageElement.textContent = 'Extension is not active without a WhatsApp web opened';
       replyCounterElement.textContent = '';
       replyCounterElement.style.display = 'none';
+      // Hide reply section when WhatsApp Web is not available
+      const replySection = document.querySelector('.reply-section');
+      if (replySection) replySection.style.display = 'none';
+      if (relativeDateElement) relativeDateElement.style.display = 'none';
       return;
     }
 
@@ -542,6 +587,13 @@ async function requestLatestMessage() {
         statusElement.textContent = ''; // Clear any previous error messages
         statusElement.className = 'status';
       }
+
+      // Show reply section and hide open WhatsApp button when WhatsApp Web is available
+      const replySection = document.querySelector('.reply-section');
+      if (replySection) replySection.style.display = 'block';
+      const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+      if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
+      if (relativeDateElement) relativeDateElement.style.display = 'block';
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve message') : 'No response from content script';
       showStatus(errorMessage, 'error');
@@ -557,6 +609,80 @@ async function requestLatestMessage() {
     replyCounterElement.textContent = '';
     replyCounterElement.style.display = 'none';
   }
+}
+
+// Function to toggle emoji keyboard
+function toggleEmojiKeyboard() {
+  if (!emojiPicker) return;
+
+  const isVisible = emojiPicker.classList.contains('show');
+
+  if (isVisible) {
+    hideEmojiPicker();
+  } else {
+    showEmojiPicker();
+  }
+}
+
+// Function to show emoji picker
+function showEmojiPicker() {
+  if (!emojiPicker) return;
+
+  emojiPicker.classList.add('show');
+  // Show common emojis
+  showEmojiCategory();
+}
+
+// Function to hide emoji picker
+function hideEmojiPicker() {
+  if (!emojiPicker) return;
+
+  emojiPicker.classList.remove('show');
+}
+
+// Function to show emojis (simplified - shows common emojis)
+function showEmojiCategory() {
+  if (!emojiGrid) return;
+
+  // Clear current emojis
+  emojiGrid.innerHTML = '';
+
+  // Show a selection of common emojis (from recent + some smileys)
+  const commonEmojis = [
+    '😊', '👍', '❤️', '😂', '😍', '🤔', '👌', '🔥', '💯', '🙏',
+    '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😊', '😇', '🙂',
+    '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋'
+  ];
+
+  // Create emoji buttons
+  commonEmojis.forEach(emoji => {
+    const emojiButton = document.createElement('button');
+    emojiButton.className = 'emoji-item';
+    emojiButton.textContent = emoji;
+    emojiButton.addEventListener('click', () => insertEmoji(emoji));
+    emojiGrid.appendChild(emojiButton);
+  });
+}
+
+// Function to insert emoji into textarea
+function insertEmoji(emoji) {
+  if (!replyInput) return;
+
+  const start = replyInput.selectionStart;
+  const end = replyInput.selectionEnd;
+  const text = replyInput.value;
+  const before = text.substring(0, start);
+  const after = text.substring(end, text.length);
+
+  replyInput.value = before + emoji + after;
+  replyInput.selectionStart = replyInput.selectionEnd = start + emoji.length;
+  replyInput.focus();
+
+  // Trigger input event to update text alignment
+  replyInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+  // Hide emoji picker after selection
+  hideEmojiPicker();
 }
 
 // Function to send reply message
@@ -576,7 +702,7 @@ async function sendReply() {
     const tab = await getWhatsAppTab();
 
     if (!tab) {
-      showStatus('WhatsApp Web not found. Please open WhatsApp Web in a tab.', 'error');
+      showStatus('Extension is not active without a WhatsApp web opened', 'info');
       return;
     }
 
@@ -638,12 +764,38 @@ document.addEventListener('DOMContentLoaded', () => {
   relativeDateElement = document.getElementById('relativeDate');
   replyInput = document.getElementById('replyInput');
   sendButton = document.getElementById('sendButton');
+  emojiButton = document.getElementById('emojiButton');
+  emojiPicker = document.getElementById('emojiPicker');
+  closeEmojiPicker = document.getElementById('closeEmojiPicker');
+  emojiGrid = document.querySelector('.emoji-grid');
+  openWhatsAppButton = document.getElementById('openWhatsAppButton');
   statusElement = document.getElementById('status'); // May be null if element removed
-  unreadIndicatorElement = document.getElementById('unreadIndicator');
 
   // Set up event listeners after DOM elements are initialized
   if (sendButton) {
     sendButton.addEventListener('click', sendReply);
+  }
+
+  if (emojiButton) {
+    emojiButton.addEventListener('click', toggleEmojiKeyboard);
+  }
+
+  if (openWhatsAppButton) {
+    openWhatsAppButton.addEventListener('click', openWhatsAppWeb);
+  }
+
+  // Emoji picker event listeners
+  if (closeEmojiPicker) {
+    closeEmojiPicker.addEventListener('click', hideEmojiPicker);
+  }
+
+  if (emojiPicker) {
+    // Close emoji picker when clicking outside
+    emojiPicker.addEventListener('click', (event) => {
+      if (event.target === emojiPicker) {
+        hideEmojiPicker();
+      }
+    });
   }
 
   // Handle Enter key in textarea to send message (WhatsApp-style behavior)
@@ -662,18 +814,28 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Auto-resize textarea based on content
+    // Auto-resize textarea and detect text language for alignment
     replyInput.addEventListener('input', () => {
       // Reset height to auto to get the correct scrollHeight
       replyInput.style.height = 'auto';
       // Set height to scrollHeight to fit content
       const newHeight = Math.min(replyInput.scrollHeight, 80); // Max height from CSS
       replyInput.style.height = newHeight + 'px';
+
+      // Detect language and apply text alignment
+      const inputText = replyInput.value;
+      const alignmentClass = getTextAlignmentClass(inputText);
+
+      // Apply alignment class to body for reply input styling
+      document.body.className = alignmentClass;
     });
+
+    // Initialize text alignment based on current input value
+    const initialAlignmentClass = getTextAlignmentClass(replyInput.value);
+    document.body.className = initialAlignmentClass;
   }
 
-  // Update unread indicator immediately when popup opens
-  updateUnreadIndicator();
+  // No badge management without background service
 
   // Run diagnostics first
   runDiagnostics().then(() => {
@@ -684,13 +846,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Auto-refresh every 5 seconds
   setInterval(() => {
     requestAllMessages();
-    updateUnreadIndicator();
+    updateUnreadStatus();
   }, 5000);
 
-  // Listen for storage changes (when background worker updates unread count)
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.unreadCount) {
-      updateUnreadIndicator();
-    }
-  });
+  // No storage change listener without background service
 });
