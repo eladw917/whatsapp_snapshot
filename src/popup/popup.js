@@ -618,22 +618,61 @@ async function requestAllMessages() {
       await updateUnreadStatus();
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve messages') : 'No response from content script';
-      showStatus(errorMessage, 'error');
-      if (latestMessageElement) latestMessageElement.textContent = errorMessage;
-      if (replyCounterElement) {
-        replyCounterElement.textContent = '';
-        replyCounterElement.style.display = 'none';
-      }
-      if (relativeDateElement) relativeDateElement.style.display = 'none';
 
-      // Cache the error state
-      await cacheMessageDisplay(
-        latestMessageElement.innerHTML,
-        '',
-        '',
-        false,
-        true
-      );
+      // Handle the specific case where no chat is selected
+      if (errorMessage.includes('No chat selected')) {
+        showStatus('Please select a conversation in WhatsApp Web to activate the extension', 'info');
+        const selectChatHtml = `
+          <div class="message-bubble ltr-text">
+            <div class="message-content" style="text-align: center; color: var(--medium-gray);">
+              <div style="font-size: 16px; margin-bottom: 8px;">📱 WhatsApp Web is ready!</div>
+              <div>Please select a conversation to activate the extension</div>
+            </div>
+          </div>
+        `;
+        if (latestMessageElement) {
+          latestMessageElement.innerHTML = selectChatHtml;
+          latestMessageElement.classList.remove('loading'); // Remove loading state
+        }
+        if (replyCounterElement) {
+          replyCounterElement.textContent = '';
+          replyCounterElement.style.display = 'none';
+        }
+        if (relativeDateElement) relativeDateElement.style.display = 'none';
+
+        // Show reply section and hide open WhatsApp button when WhatsApp Web is available
+        const replySection = document.querySelector('.reply-section');
+        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+        if (replySection) replySection.style.display = 'block';
+        if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
+
+        // Cache the "select chat" state
+        await cacheMessageDisplay(
+          selectChatHtml,
+          '',
+          '',
+          true,
+          false
+        );
+      } else {
+        // Handle other errors normally
+        showStatus(errorMessage, 'error');
+        if (latestMessageElement) latestMessageElement.textContent = errorMessage;
+        if (replyCounterElement) {
+          replyCounterElement.textContent = '';
+          replyCounterElement.style.display = 'none';
+        }
+        if (relativeDateElement) relativeDateElement.style.display = 'none';
+
+        // Cache the error state
+        await cacheMessageDisplay(
+          latestMessageElement.innerHTML,
+          '',
+          '',
+          false,
+          true
+        );
+      }
 
       // Still try to update unread indicator
       await updateUnreadStatus();
@@ -726,13 +765,46 @@ async function requestLatestMessage() {
       if (relativeDateElement) relativeDateElement.style.display = 'block';
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve message') : 'No response from content script';
-      showStatus(errorMessage, 'error');
-      if (latestMessageElement) {
-        latestMessageElement.textContent = errorMessage;
-        latestMessageElement.classList.remove('loading'); // Remove loading state
+
+      // Handle the specific case where no chat is selected
+      if (errorMessage.includes('No chat selected')) {
+        showStatus('Please select a conversation in WhatsApp Web to activate the extension', 'info');
+        const selectChatHtml = `
+          <div class="message-bubble ltr-text">
+            <div class="message-content" style="text-align: center; color: var(--medium-gray);">
+              <div style="font-size: 16px; margin-bottom: 8px;">📱 WhatsApp Web is ready!</div>
+              <div>Please select a conversation to activate the extension</div>
+            </div>
+          </div>
+        `;
+        if (latestMessageElement) {
+          latestMessageElement.innerHTML = selectChatHtml;
+          latestMessageElement.classList.remove('loading'); // Remove loading state
+        }
+        if (replyCounterElement) {
+          replyCounterElement.textContent = '';
+          replyCounterElement.style.display = 'none';
+        }
+
+        // Show reply section and hide open WhatsApp button when WhatsApp Web is available
+        const replySection = document.querySelector('.reply-section');
+        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+        if (replySection) replySection.style.display = 'block';
+        if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
+        if (relativeDateElement) relativeDateElement.style.display = 'none';
+      } else {
+        // Handle other errors normally
+        showStatus(errorMessage, 'error');
+        if (latestMessageElement) {
+          latestMessageElement.textContent = errorMessage;
+          latestMessageElement.classList.remove('loading'); // Remove loading state
+        }
+        if (replyCounterElement) {
+          replyCounterElement.textContent = '';
+          replyCounterElement.style.display = 'none';
+        }
+        if (relativeDateElement) relativeDateElement.style.display = 'none';
       }
-      replyCounterElement.textContent = '';
-      replyCounterElement.style.display = 'none';
     }
 
   } catch (error) {
