@@ -23,9 +23,6 @@ The extension requires the following minimal permissions to function:
 - **`activeTab`**: Allows the extension to interact with the currently active tab (only WhatsApp Web)
 - **`scripting`**: Enables injection of content scripts for message extraction
 - **`tabs`**: Provides access to tab information for messaging between extension components
-- **`alarms`**: Used for auto-refresh functionality
-- **`storage`**: Stores extension settings locally in your browser
-
 ### Host Permissions
 - **`https://web.whatsapp.com/*`**: Limited access only to WhatsApp Web pages
 
@@ -39,8 +36,7 @@ The extension requires the following minimal permissions to function:
 
 ### Data Retention
 - Messages are displayed temporarily and cleared when the popup closes
-- No persistent storage of message content
-- Browser storage is only used for extension settings (theme preferences, etc.)
+- No persistent storage of message content or personal data
 
 ## Data Security
 - All data processing happens locally in your browser

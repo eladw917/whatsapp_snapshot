@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - [Current Date] - Performance & Privacy Improvements
+
+### Changed
+- **Removed Caching**: Eliminated popup display caching for always-fresh message data
+- **Removed Storage Permission**: No longer requires storage permission for improved privacy
+- **Simplified Codebase**: Removed complex caching logic for better maintainability
+
+### Technical Improvements
+- **Always Fresh Data**: Popup now shows current messages without caching delays
+- **Better Privacy**: No local storage of message display state
+- **Reduced Permissions**: Minimal permission set for enhanced security
+
 ## [1.0.0] - [Current Date] - Initial Release
 
 ### Added

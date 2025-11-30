@@ -47,7 +47,7 @@ A Chrome extension that extracts the latest messages from WhatsApp Web chats and
    npm run zip
    ```
 
-4. The `whatsapp-replypal-v1.0.0.zip` file will be created in the project root
+4. A ZIP file with the current version will be created in the project root (e.g., `whatsapp-replypal-v1.0.0.zip`)
 
 #### Manual Build
 1. Copy all files from `src/` to a new directory

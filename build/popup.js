@@ -98,23 +98,58 @@ function parseMessageDateTime(dateString, timeString) {
     return null;
   }
 
-  // Parse date string in format DD.MM.YYYY
-  const dateParts = dateString.split('.');
-  if (dateParts.length !== 3) {
-    return null;
-  }
-
   // Parse time string in format HH:MM
   const timeParts = timeString.split(':');
   if (timeParts.length !== 2) {
     return null;
   }
-
-  const day = parseInt(dateParts[0], 10);
-  const monthIndex = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed in JS Date
-  const year = parseInt(dateParts[2], 10);
   const hours = parseInt(timeParts[0], 10);
   const minutes = parseInt(timeParts[1], 10);
+
+  let day, monthIndex, year;
+
+  // Try to parse different date formats that might come from content script
+  const dateParts = dateString.split(/[.\-\/]/); // Split on dots, slashes, or dashes
+
+  if (dateParts.length === 3) {
+    const first = parseInt(dateParts[0], 10);
+    const second = parseInt(dateParts[1], 10);
+    const third = parseInt(dateParts[2], 10);
+
+    // Determine format based on values and separators
+    if (dateString.includes('.')) {
+      // DD.MM.YYYY or MM.DD.YYYY - assume DD.MM.YYYY (European format)
+      day = first;
+      monthIndex = second - 1;
+      year = third;
+    } else if (dateString.includes('/')) {
+      // Could be MM/DD/YYYY or DD/MM/YYYY
+      // For US format (MM/DD/YYYY), month is typically <= 12 and day > 12
+      if (first <= 12 && second > 12) {
+        // MM/DD/YYYY format
+        monthIndex = first - 1;
+        day = second;
+        year = third;
+      } else {
+        // DD/MM/YYYY format (assume this for other cases)
+        day = first;
+        monthIndex = second - 1;
+        year = third;
+      }
+    } else if (dateString.includes('-')) {
+      // YYYY-MM-DD format
+      year = first;
+      monthIndex = second - 1;
+      day = third;
+    } else {
+      // Fallback: assume DD.MM.YYYY
+      day = first;
+      monthIndex = second - 1;
+      year = third;
+    }
+  } else {
+    return null;
+  }
 
   return new Date(year, monthIndex, day, hours, minutes);
 }
@@ -139,15 +174,49 @@ function getRelativeDate(dateString) {
     return '';
   }
 
-  // Parse date string in format DD.MM.YYYY
-  const dateParts = dateString.split('.');
-  if (dateParts.length !== 3) {
+  // Parse date using the same flexible parsing logic as parseMessageDateTime
+  let day, monthIndex, year;
+
+  const dateParts = dateString.split(/[.\-\/]/); // Split on dots, slashes, or dashes
+
+  if (dateParts.length === 3) {
+    const first = parseInt(dateParts[0], 10);
+    const second = parseInt(dateParts[1], 10);
+    const third = parseInt(dateParts[2], 10);
+
+    // Determine format based on values and separators
+    if (dateString.includes('.')) {
+      // DD.MM.YYYY or MM.DD.YYYY - assume DD.MM.YYYY (European format)
+      day = first;
+      monthIndex = second - 1;
+      year = third;
+    } else if (dateString.includes('/')) {
+      // Could be MM/DD/YYYY or DD/MM/YYYY
+      if (first <= 12 && second > 12) {
+        // MM/DD/YYYY format
+        monthIndex = first - 1;
+        day = second;
+        year = third;
+      } else {
+        // DD/MM/YYYY format
+        day = first;
+        monthIndex = second - 1;
+        year = third;
+      }
+    } else if (dateString.includes('-')) {
+      // YYYY-MM-DD format
+      year = first;
+      monthIndex = second - 1;
+      day = third;
+    } else {
+      // Fallback: assume DD.MM.YYYY
+      day = first;
+      monthIndex = second - 1;
+      year = third;
+    }
+  } else {
     return '';
   }
-
-  const day = parseInt(dateParts[0], 10);
-  const monthIndex = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed in JS Date
-  const year = parseInt(dateParts[2], 10);
 
   const messageDate = new Date(year, monthIndex, day);
   const today = new Date();
@@ -345,8 +414,6 @@ async function updateUnreadStatus() {
           });
           if (response && typeof response.hasUnread === 'boolean') {
             hasUnread = response.hasUnread;
-            // Update storage with latest status
-            await chrome.storage.local.set({ hasUnread: hasUnread });
           }
         }
       }
@@ -362,60 +429,6 @@ async function updateUnreadStatus() {
 
 // Function removed - no background service for badge management
 
-// Function to cache the current message display state
-async function cacheMessageDisplay(html, replyCounterText, relativeDateText, replySectionVisible, openWhatsAppVisible) {
-  try {
-    await chrome.storage.local.set({
-      cachedMessage: {
-        html: html,
-        replyCounterText: replyCounterText,
-        relativeDateText: relativeDateText,
-        replySectionVisible: replySectionVisible,
-        openWhatsAppVisible: openWhatsAppVisible,
-        timestamp: Date.now()
-      }
-    });
-  } catch (error) {
-    console.error('Error caching message display:', error);
-  }
-}
-
-// Function to load cached message display
-async function loadCachedMessage() {
-  try {
-    const result = await chrome.storage.local.get('cachedMessage');
-    const cached = result.cachedMessage;
-
-    if (cached && cached.html) {
-      // Check if cache is less than 30 seconds old
-      if (Date.now() - cached.timestamp < 30000) {
-        if (latestMessageElement) {
-          latestMessageElement.innerHTML = cached.html;
-          latestMessageElement.classList.remove('loading'); // Remove loading state
-        }
-        if (replyCounterElement) {
-          replyCounterElement.textContent = cached.replyCounterText || '';
-          replyCounterElement.style.display = cached.replyCounterText ? 'block' : 'none';
-        }
-        if (relativeDateElement) {
-          relativeDateElement.textContent = cached.relativeDateText || '';
-          relativeDateElement.style.display = cached.relativeDateText ? 'block' : 'none';
-        }
-
-        // Show/hide sections based on cached state
-        const replySection = document.querySelector('.reply-section');
-        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
-        if (replySection) replySection.style.display = cached.replySectionVisible ? 'block' : 'none';
-        if (openWhatsAppSection) openWhatsAppSection.style.display = cached.openWhatsAppVisible ? 'block' : 'none';
-
-        return true; // Successfully loaded from cache
-      }
-    }
-  } catch (error) {
-    console.error('Error loading cached message:', error);
-  }
-  return false; // No valid cache available
-}
 
 // Function to request all messages from content script
 async function requestAllMessages() {
@@ -438,15 +451,6 @@ async function requestAllMessages() {
       const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
       if (openWhatsAppSection) openWhatsAppSection.style.display = 'block';
       if (relativeDateElement) relativeDateElement.style.display = 'none';
-
-      // Cache the error state
-      await cacheMessageDisplay(
-        latestMessageElement.innerHTML,
-        '',
-        '',
-        false,
-        true
-      );
 
       // Update unread indicator
       await updateUnreadStatus();
@@ -475,15 +479,6 @@ async function requestAllMessages() {
       if (replySection) replySection.style.display = 'none';
       const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
       if (openWhatsAppSection) openWhatsAppSection.style.display = 'block';
-
-      // Cache the error state
-      await cacheMessageDisplay(
-        latestMessageElement.innerHTML,
-        '',
-        '',
-        false,
-        true
-      );
 
       return;
     }
@@ -567,15 +562,6 @@ async function requestAllMessages() {
         const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
         if (replySection) replySection.style.display = 'block';
         if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
-
-        // Cache successful message display
-        await cacheMessageDisplay(
-          messageHtml,
-          replyCounterText,
-          relativeDateStr,
-          true,
-          false
-        );
       } else {
         // For "no messages" message, default to LTR since it's in English
         const noMessagesHtml = `
@@ -598,15 +584,6 @@ async function requestAllMessages() {
         if (replySection) replySection.style.display = 'block';
         if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
         if (relativeDateElement) relativeDateElement.style.display = 'none';
-
-        // Cache the no messages state
-        await cacheMessageDisplay(
-          noMessagesHtml,
-          '',
-          '',
-          true,
-          false
-        );
       }
 
       if (statusElement) {
@@ -618,61 +595,13 @@ async function requestAllMessages() {
       await updateUnreadStatus();
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve messages') : 'No response from content script';
-
-      // Handle the specific case where no chat is selected
-      if (errorMessage.includes('No chat selected')) {
-        showStatus('Please select a conversation in WhatsApp Web to activate the extension', 'info');
-        const selectChatHtml = `
-          <div class="message-bubble ltr-text">
-            <div class="message-content" style="text-align: center; color: var(--medium-gray);">
-              <div style="font-size: 16px; margin-bottom: 8px;">📱 WhatsApp Web is ready!</div>
-              <div>Please select a conversation to activate the extension</div>
-            </div>
-          </div>
-        `;
-        if (latestMessageElement) {
-          latestMessageElement.innerHTML = selectChatHtml;
-          latestMessageElement.classList.remove('loading'); // Remove loading state
-        }
-        if (replyCounterElement) {
-          replyCounterElement.textContent = '';
-          replyCounterElement.style.display = 'none';
-        }
-        if (relativeDateElement) relativeDateElement.style.display = 'none';
-
-        // Show reply section and hide open WhatsApp button when WhatsApp Web is available
-        const replySection = document.querySelector('.reply-section');
-        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
-        if (replySection) replySection.style.display = 'block';
-        if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
-
-        // Cache the "select chat" state
-        await cacheMessageDisplay(
-          selectChatHtml,
-          '',
-          '',
-          true,
-          false
-        );
-      } else {
-        // Handle other errors normally
-        showStatus(errorMessage, 'error');
-        if (latestMessageElement) latestMessageElement.textContent = errorMessage;
-        if (replyCounterElement) {
-          replyCounterElement.textContent = '';
-          replyCounterElement.style.display = 'none';
-        }
-        if (relativeDateElement) relativeDateElement.style.display = 'none';
-
-        // Cache the error state
-        await cacheMessageDisplay(
-          latestMessageElement.innerHTML,
-          '',
-          '',
-          false,
-          true
-        );
+      showStatus(errorMessage, 'error');
+      if (latestMessageElement) latestMessageElement.textContent = errorMessage;
+      if (replyCounterElement) {
+        replyCounterElement.textContent = '';
+        replyCounterElement.style.display = 'none';
       }
+      if (relativeDateElement) relativeDateElement.style.display = 'none';
 
       // Still try to update unread indicator
       await updateUnreadStatus();
@@ -687,15 +616,6 @@ async function requestAllMessages() {
       replyCounterElement.style.display = 'none';
     }
     if (relativeDateElement) relativeDateElement.style.display = 'none';
-
-    // Cache the error state
-    await cacheMessageDisplay(
-      latestMessageElement.innerHTML,
-      '',
-      '',
-      false,
-      true
-    );
 
     // Still try to update unread indicator
     await updateUnreadStatus();
@@ -765,46 +685,13 @@ async function requestLatestMessage() {
       if (relativeDateElement) relativeDateElement.style.display = 'block';
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve message') : 'No response from content script';
-
-      // Handle the specific case where no chat is selected
-      if (errorMessage.includes('No chat selected')) {
-        showStatus('Please select a conversation in WhatsApp Web to activate the extension', 'info');
-        const selectChatHtml = `
-          <div class="message-bubble ltr-text">
-            <div class="message-content" style="text-align: center; color: var(--medium-gray);">
-              <div style="font-size: 16px; margin-bottom: 8px;">📱 WhatsApp Web is ready!</div>
-              <div>Please select a conversation to activate the extension</div>
-            </div>
-          </div>
-        `;
-        if (latestMessageElement) {
-          latestMessageElement.innerHTML = selectChatHtml;
-          latestMessageElement.classList.remove('loading'); // Remove loading state
-        }
-        if (replyCounterElement) {
-          replyCounterElement.textContent = '';
-          replyCounterElement.style.display = 'none';
-        }
-
-        // Show reply section and hide open WhatsApp button when WhatsApp Web is available
-        const replySection = document.querySelector('.reply-section');
-        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
-        if (replySection) replySection.style.display = 'block';
-        if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
-        if (relativeDateElement) relativeDateElement.style.display = 'none';
-      } else {
-        // Handle other errors normally
-        showStatus(errorMessage, 'error');
-        if (latestMessageElement) {
-          latestMessageElement.textContent = errorMessage;
-          latestMessageElement.classList.remove('loading'); // Remove loading state
-        }
-        if (replyCounterElement) {
-          replyCounterElement.textContent = '';
-          replyCounterElement.style.display = 'none';
-        }
-        if (relativeDateElement) relativeDateElement.style.display = 'none';
+      showStatus(errorMessage, 'error');
+      if (latestMessageElement) {
+        latestMessageElement.textContent = errorMessage;
+        latestMessageElement.classList.remove('loading'); // Remove loading state
       }
+      replyCounterElement.textContent = '';
+      replyCounterElement.style.display = 'none';
     }
 
   } catch (error) {
@@ -1047,10 +934,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Run diagnostics first
   runDiagnostics().then(async () => {
-    // Load cached message immediately for instant display
-    const hasCachedData = await loadCachedMessage();
-
-    // Then load fresh messages in background
+    // Skip caching - load fresh messages directly for most current data
     requestAllMessages();
   });
 

@@ -4,10 +4,9 @@
 
 ### 1. **Header Section**
 - **Element ID**: `header` (CSS class)
-- **Purpose**: Displays the extension title and unread message indicator
+- **Purpose**: Displays the extension title
 - **Components**:
   - **Title**: `<h1>WhatsApp ReplyPal</h1>` - Extension name
-  - **Unread Indicator**: `<div id="unreadIndicator">` - Shows unread message count (e.g., "3 unread")
 
 ### 2. **Main Container**
 - **Element ID**: `container` (CSS class)
@@ -83,7 +82,7 @@ Popup Window (350px width, 200-400px height)
 - **Auto-resize**: Textarea grows with content up to max height
 - **Keyboard Shortcuts**: Enter to send, Shift+Enter for new line
 - **Real-time Updates**: Auto-refreshes every 5 seconds
-- **Unread Count**: Shows total unread messages across all chats
+- **Loading States**: Skeleton animation while fetching messages
 
 ## Styling Notes
 

@@ -47,10 +47,16 @@ filesToCopy.forEach(({ src, dest }) => {
   }
 });
 
+// Read package.json for version
+const packageJson = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+
 // Update manifest.json paths for build
 const manifestPath = path.join(__dirname, '..', 'build', 'manifest.json');
 if (fs.existsSync(manifestPath)) {
   let manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+  // Sync version from package.json
+  manifest.version = packageJson.version;
 
   // Update popup path
   if (manifest.action && manifest.action.default_popup) {

@@ -101,14 +101,66 @@
         if (copyableTextEl) {
           const prePlainText = copyableTextEl.getAttribute('data-pre-plain-text');
           if (prePlainText) {
-            // Parse format: [HH:MM, DD.MM.YYYY] SenderName:
-            // Example: [21:31, 17.11.2025] רוני הרשקורן:
-            const dateTimeMatch = prePlainText.match(/\[(\d{1,2}):(\d{2}),\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\]\s*(.+?):\s*/);
+            // Try multiple date format patterns to handle different browser locales
+            // Pattern 1: [HH:MM, DD.MM.YYYY] SenderName: (European format - dots)
+            // Pattern 2: [HH:MM, MM/DD/YYYY] SenderName: (US format - slashes)
+            // Pattern 3: [HH:MM, DD/MM/YYYY] SenderName: (UK/Commonwealth format - slashes)
+            // Pattern 4: [HH:MM, YYYY-MM-DD] SenderName: (ISO format - dashes)
+            const datePatterns = [
+              // DD.MM.YYYY (European/Commonwealth with dots)
+              /\[(\d{1,2}):(\d{2}),\s*(\d{1,2})\.(\d{1,2})\.(\d{4})\]\s*(.+?):\s*/,
+              // MM/DD/YYYY (US format with slashes)
+              /\[(\d{1,2}):(\d{2}),\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\]\s*(.+?):\s*/,
+              // DD/MM/YYYY (UK/Commonwealth format with slashes)
+              /\[(\d{1,2}):(\d{2}),\s*(\d{1,2})\/(\d{1,2})\/(\d{4})\]\s*(.+?):\s*/,
+              // YYYY-MM-DD (ISO format with dashes)
+              /\[(\d{1,2}):(\d{2}),\s*(\d{4})-(\d{1,2})-(\d{1,2})\]\s*(.+?):\s*/
+            ];
+
+            let dateTimeMatch = null;
+            let matchedPattern = -1;
+
+            // Try each pattern until one matches
+            for (let i = 0; i < datePatterns.length; i++) {
+              dateTimeMatch = prePlainText.match(datePatterns[i]);
+              if (dateTimeMatch) {
+                matchedPattern = i;
+                break;
+              }
+            }
+
             if (dateTimeMatch) {
               // Extract time (HH:MM)
               time = `${dateTimeMatch[1]}:${dateTimeMatch[2]}`;
-              // Extract full date (DD.MM.YYYY)
-              date = `${dateTimeMatch[3]}.${dateTimeMatch[4]}.${dateTimeMatch[5]}`;
+
+              // Extract and normalize date to DD.MM.YYYY format based on matched pattern
+              let day, month, year;
+              switch (matchedPattern) {
+                case 0: // DD.MM.YYYY
+                  day = dateTimeMatch[3];
+                  month = dateTimeMatch[4];
+                  year = dateTimeMatch[5];
+                  break;
+                case 1: // MM/DD/YYYY (US format)
+                  month = dateTimeMatch[3];
+                  day = dateTimeMatch[4];
+                  year = dateTimeMatch[5];
+                  break;
+                case 2: // DD/MM/YYYY (UK format)
+                  day = dateTimeMatch[3];
+                  month = dateTimeMatch[4];
+                  year = dateTimeMatch[5];
+                  break;
+                case 3: // YYYY-MM-DD (ISO format)
+                  year = dateTimeMatch[3];
+                  month = dateTimeMatch[4];
+                  day = dateTimeMatch[5];
+                  break;
+              }
+
+              // Ensure consistent DD.MM.YYYY format for internal use
+              date = `${day}.${month}.${year}`;
+
               // Extract sender name (everything after date until colon)
               const extractedSender = dateTimeMatch[6].trim();
               if (extractedSender) {
