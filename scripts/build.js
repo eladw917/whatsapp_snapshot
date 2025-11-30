@@ -47,5 +47,52 @@ filesToCopy.forEach(({ src, dest }) => {
   }
 });
 
+// Update manifest.json paths for build
+const manifestPath = path.join(__dirname, '..', 'build', 'manifest.json');
+if (fs.existsSync(manifestPath)) {
+  let manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+  // Update popup path
+  if (manifest.action && manifest.action.default_popup) {
+    manifest.action.default_popup = manifest.action.default_popup.replace('src/popup/', '');
+  }
+
+  // Update content scripts
+  if (manifest.content_scripts) {
+    manifest.content_scripts.forEach(script => {
+      if (script.js) {
+        script.js = script.js.map(js => js.replace('src/content/', ''));
+      }
+    });
+  }
+
+  // Update icons
+  if (manifest.icons) {
+    Object.keys(manifest.icons).forEach(key => {
+      manifest.icons[key] = manifest.icons[key].replace('src/icons/', 'icons/');
+    });
+  }
+
+  // Update web_accessible_resources
+  if (manifest.web_accessible_resources) {
+    manifest.web_accessible_resources.forEach(resource => {
+      if (resource.resources) {
+        resource.resources = resource.resources.map(res => res.replace('src/icons/background.png', 'background.png'));
+      }
+    });
+  }
+
+  // Update CSS background path
+  const cssPath = path.join(__dirname, '..', 'build', 'styles.css');
+  if (fs.existsSync(cssPath)) {
+    let css = fs.readFileSync(cssPath, 'utf8');
+    css = css.replace("../icons/background.png", "background.png");
+    fs.writeFileSync(cssPath, css);
+  }
+
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  console.log('✓ Updated manifest.json paths for build');
+}
+
 console.log('\n🎉 Build completed! Files copied to build/ directory.');
 console.log('Ready for Chrome Web Store submission.');

@@ -14,7 +14,13 @@
   <div class="container">
     <div class="message-section">
       <div class="relative-date" id="relativeDate"></div>
-      <div class="message-display" id="latestMessage">Loading...</div>
+      <div class="message-display loading" id="latestMessage">
+        <div class="skeleton-loader">
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line long"></div>
+          <div class="skeleton-line medium"></div>
+        </div>
+      </div>
       <div class="reply-counter" id="replyCounter"></div>
     </div>
 

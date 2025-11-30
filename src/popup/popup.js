@@ -223,7 +223,7 @@ async function openWhatsAppWeb() {
 // Function to manually inject content script if needed
 async function ensureContentScript(tab) {
   try {
-    // First try to ping
+    // First try to ping quickly without delay
     const isConnected = await testContentScriptConnection(tab.id);
     if (isConnected) {
       return true;
@@ -235,16 +235,12 @@ async function ensureContentScript(tab) {
       files: ['src/content/content.js']
     });
 
-    // Wait a bit for the script to initialize
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait minimal time for the script to initialize (reduced from 1000ms to 200ms)
+    await new Promise(resolve => setTimeout(resolve, 200));
 
-    // Test again
+    // Test connection again
     const isNowConnected = await testContentScriptConnection(tab.id);
-    if (isNowConnected) {
-      return true;
-    } else {
-      return false;
-    }
+    return isNowConnected;
 
   } catch (error) {
     console.error('Error ensuring content script:', error);
@@ -366,6 +362,61 @@ async function updateUnreadStatus() {
 
 // Function removed - no background service for badge management
 
+// Function to cache the current message display state
+async function cacheMessageDisplay(html, replyCounterText, relativeDateText, replySectionVisible, openWhatsAppVisible) {
+  try {
+    await chrome.storage.local.set({
+      cachedMessage: {
+        html: html,
+        replyCounterText: replyCounterText,
+        relativeDateText: relativeDateText,
+        replySectionVisible: replySectionVisible,
+        openWhatsAppVisible: openWhatsAppVisible,
+        timestamp: Date.now()
+      }
+    });
+  } catch (error) {
+    console.error('Error caching message display:', error);
+  }
+}
+
+// Function to load cached message display
+async function loadCachedMessage() {
+  try {
+    const result = await chrome.storage.local.get('cachedMessage');
+    const cached = result.cachedMessage;
+
+    if (cached && cached.html) {
+      // Check if cache is less than 30 seconds old
+      if (Date.now() - cached.timestamp < 30000) {
+        if (latestMessageElement) {
+          latestMessageElement.innerHTML = cached.html;
+          latestMessageElement.classList.remove('loading'); // Remove loading state
+        }
+        if (replyCounterElement) {
+          replyCounterElement.textContent = cached.replyCounterText || '';
+          replyCounterElement.style.display = cached.replyCounterText ? 'block' : 'none';
+        }
+        if (relativeDateElement) {
+          relativeDateElement.textContent = cached.relativeDateText || '';
+          relativeDateElement.style.display = cached.relativeDateText ? 'block' : 'none';
+        }
+
+        // Show/hide sections based on cached state
+        const replySection = document.querySelector('.reply-section');
+        const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+        if (replySection) replySection.style.display = cached.replySectionVisible ? 'block' : 'none';
+        if (openWhatsAppSection) openWhatsAppSection.style.display = cached.openWhatsAppVisible ? 'block' : 'none';
+
+        return true; // Successfully loaded from cache
+      }
+    }
+  } catch (error) {
+    console.error('Error loading cached message:', error);
+  }
+  return false; // No valid cache available
+}
+
 // Function to request all messages from content script
 async function requestAllMessages() {
   try {
@@ -373,25 +424,47 @@ async function requestAllMessages() {
 
     if (!tab) {
       showStatus('Extension is not active without a WhatsApp web opened', 'info');
-      if (latestMessageElement) latestMessageElement.textContent = 'Extension is not active without a WhatsApp web opened';
+      if (latestMessageElement) {
+        latestMessageElement.textContent = 'Extension is not active without a WhatsApp web opened';
+        latestMessageElement.classList.remove('loading'); // Remove loading state
+      }
       if (replyCounterElement) {
         replyCounterElement.textContent = '';
         replyCounterElement.style.display = 'none';
       }
-      // Hide reply section when WhatsApp Web is not available
+      // Hide reply section and show open WhatsApp button when WhatsApp Web is not available
       const replySection = document.querySelector('.reply-section');
       if (replySection) replySection.style.display = 'none';
+      const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+      if (openWhatsAppSection) openWhatsAppSection.style.display = 'block';
       if (relativeDateElement) relativeDateElement.style.display = 'none';
+
+      // Cache the error state
+      await cacheMessageDisplay(
+        latestMessageElement.innerHTML,
+        '',
+        '',
+        false,
+        true
+      );
+
       // Update unread indicator
       await updateUnreadStatus();
       return;
     }
 
-    // Ensure content script is available
-    const scriptAvailable = await ensureContentScript(tab);
+    // Ensure content script is available and update unread status in parallel
+    const [scriptAvailable, unreadStatusUpdated] = await Promise.all([
+      ensureContentScript(tab),
+      updateUnreadStatus()
+    ]);
+
     if (!scriptAvailable) {
       showStatus('Failed to connect to WhatsApp Web. Content script could not be injected.', 'error');
-      if (latestMessageElement) latestMessageElement.textContent = 'Could not inject content script';
+      if (latestMessageElement) {
+        latestMessageElement.textContent = 'Could not inject content script';
+        latestMessageElement.classList.remove('loading'); // Remove loading state
+      }
       if (replyCounterElement) {
         replyCounterElement.textContent = '';
         replyCounterElement.style.display = 'none';
@@ -402,13 +475,18 @@ async function requestAllMessages() {
       if (replySection) replySection.style.display = 'none';
       const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
       if (openWhatsAppSection) openWhatsAppSection.style.display = 'block';
-      // Update unread indicator
-      await updateUnreadStatus();
+
+      // Cache the error state
+      await cacheMessageDisplay(
+        latestMessageElement.innerHTML,
+        '',
+        '',
+        false,
+        true
+      );
+
       return;
     }
-
-    // Update unread indicator
-    await updateUnreadStatus();
 
     // Send message to content script
     const response = await chrome.tabs.sendMessage(tab.id, {
@@ -466,7 +544,7 @@ async function requestAllMessages() {
         // Determine text alignment based on message content language
         const alignmentClass = getTextAlignmentClass(messageContent);
 
-        latestMessageElement.innerHTML = `
+        const messageHtml = `
           <div class="message-bubble ${alignmentClass}">
             <div class="message-sender">${displayChatInfo}</div>
             <div class="message-content">${escapedContent}</div>
@@ -474,56 +552,89 @@ async function requestAllMessages() {
           </div>
         `;
 
+        latestMessageElement.innerHTML = messageHtml;
+        latestMessageElement.classList.remove('loading'); // Remove loading state
+
         // Set reply counter separately
-        if (sentAfterReceived > 0) {
-          replyCounterElement.textContent = `You've replied ${sentAfterReceived} time${sentAfterReceived === 1 ? '' : 's'}`;
-          replyCounterElement.style.display = 'block';
-        } else {
-          replyCounterElement.textContent = '';
-          replyCounterElement.style.display = 'none';
+        const replyCounterText = sentAfterReceived > 0 ? `You've replied ${sentAfterReceived} time${sentAfterReceived === 1 ? '' : 's'}` : '';
+        if (replyCounterElement) {
+          replyCounterElement.textContent = replyCounterText;
+          replyCounterElement.style.display = sentAfterReceived > 0 ? 'block' : 'none';
         }
 
         // Show reply section and hide open WhatsApp button when WhatsApp Web is available
         const replySection = document.querySelector('.reply-section');
-        if (replySection) replySection.style.display = 'block';
         const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+        if (replySection) replySection.style.display = 'block';
         if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
-        if (relativeDateElement) relativeDateElement.style.display = 'block';
+
+        // Cache successful message display
+        await cacheMessageDisplay(
+          messageHtml,
+          replyCounterText,
+          relativeDateStr,
+          true,
+          false
+        );
       } else {
         // For "no messages" message, default to LTR since it's in English
-        latestMessageElement.innerHTML = `
+        const noMessagesHtml = `
           <div class="message-bubble ltr-text">
             <div class="message-content" style="text-align: center; color: var(--medium-gray);">
               No received messages found
             </div>
           </div>
         `;
-        replyCounterElement.textContent = '';
-        replyCounterElement.style.display = 'none';
+        latestMessageElement.innerHTML = noMessagesHtml;
+        latestMessageElement.classList.remove('loading'); // Remove loading state
+        if (replyCounterElement) {
+          replyCounterElement.textContent = '';
+          replyCounterElement.style.display = 'none';
+        }
 
         // Show reply section and hide open WhatsApp button when WhatsApp Web is available
         const replySection = document.querySelector('.reply-section');
-        if (replySection) replySection.style.display = 'block';
         const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+        if (replySection) replySection.style.display = 'block';
         if (openWhatsAppSection) openWhatsAppSection.style.display = 'none';
-        if (relativeDateElement) relativeDateElement.style.display = 'block';
-        relativeDateElement.style.display = 'none';
+        if (relativeDateElement) relativeDateElement.style.display = 'none';
+
+        // Cache the no messages state
+        await cacheMessageDisplay(
+          noMessagesHtml,
+          '',
+          '',
+          true,
+          false
+        );
       }
 
       if (statusElement) {
         statusElement.textContent = '';
         statusElement.className = 'status';
       }
-      
+
       // Update unread indicator after successful message fetch
       await updateUnreadStatus();
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve messages') : 'No response from content script';
       showStatus(errorMessage, 'error');
-      latestMessageElement.textContent = errorMessage;
-      replyCounterElement.textContent = '';
-      replyCounterElement.style.display = 'none';
+      if (latestMessageElement) latestMessageElement.textContent = errorMessage;
+      if (replyCounterElement) {
+        replyCounterElement.textContent = '';
+        replyCounterElement.style.display = 'none';
+      }
       if (relativeDateElement) relativeDateElement.style.display = 'none';
+
+      // Cache the error state
+      await cacheMessageDisplay(
+        latestMessageElement.innerHTML,
+        '',
+        '',
+        false,
+        true
+      );
+
       // Still try to update unread indicator
       await updateUnreadStatus();
     }
@@ -531,10 +642,22 @@ async function requestAllMessages() {
   } catch (error) {
     console.error('Error requesting messages:', error);
     showStatus(`Communication error: ${error.message}`, 'error');
-    latestMessageElement.textContent = 'Unable to load messages';
-    replyCounterElement.textContent = '';
-    replyCounterElement.style.display = 'none';
-    relativeDateElement.style.display = 'none';
+    if (latestMessageElement) latestMessageElement.textContent = 'Unable to load messages';
+    if (replyCounterElement) {
+      replyCounterElement.textContent = '';
+      replyCounterElement.style.display = 'none';
+    }
+    if (relativeDateElement) relativeDateElement.style.display = 'none';
+
+    // Cache the error state
+    await cacheMessageDisplay(
+      latestMessageElement.innerHTML,
+      '',
+      '',
+      false,
+      true
+    );
+
     // Still try to update unread indicator
     await updateUnreadStatus();
   }
@@ -547,12 +670,19 @@ async function requestLatestMessage() {
 
     if (!tab) {
       showStatus('Extension is not active without a WhatsApp web opened', 'info');
-      latestMessageElement.textContent = 'Extension is not active without a WhatsApp web opened';
-      replyCounterElement.textContent = '';
-      replyCounterElement.style.display = 'none';
-      // Hide reply section when WhatsApp Web is not available
+      if (latestMessageElement) {
+        latestMessageElement.textContent = 'Extension is not active without a WhatsApp web opened';
+        latestMessageElement.classList.remove('loading'); // Remove loading state
+      }
+      if (replyCounterElement) {
+        replyCounterElement.textContent = '';
+        replyCounterElement.style.display = 'none';
+      }
+      // Hide reply section and show open WhatsApp button when WhatsApp Web is not available
       const replySection = document.querySelector('.reply-section');
       if (replySection) replySection.style.display = 'none';
+      const openWhatsAppSection = document.querySelector('.open-whatsapp-section');
+      if (openWhatsAppSection) openWhatsAppSection.style.display = 'block';
       if (relativeDateElement) relativeDateElement.style.display = 'none';
       return;
     }
@@ -597,7 +727,10 @@ async function requestLatestMessage() {
     } else {
       const errorMessage = response ? (response.error || 'Failed to retrieve message') : 'No response from content script';
       showStatus(errorMessage, 'error');
-      latestMessageElement.textContent = errorMessage;
+      if (latestMessageElement) {
+        latestMessageElement.textContent = errorMessage;
+        latestMessageElement.classList.remove('loading'); // Remove loading state
+      }
       replyCounterElement.textContent = '';
       replyCounterElement.style.display = 'none';
     }
@@ -605,7 +738,10 @@ async function requestLatestMessage() {
   } catch (error) {
     console.error('Error requesting latest message:', error);
     showStatus(`Communication error: ${error.message}`, 'error');
-    latestMessageElement.textContent = 'Unable to load messages';
+    if (latestMessageElement) {
+      latestMessageElement.textContent = 'Unable to load messages';
+      latestMessageElement.classList.remove('loading'); // Remove loading state
+    }
     replyCounterElement.textContent = '';
     replyCounterElement.style.display = 'none';
   }
@@ -838,8 +974,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // No badge management without background service
 
   // Run diagnostics first
-  runDiagnostics().then(() => {
-    // Load all messages when popup opens
+  runDiagnostics().then(async () => {
+    // Load cached message immediately for instant display
+    const hasCachedData = await loadCachedMessage();
+
+    // Then load fresh messages in background
     requestAllMessages();
   });
 
