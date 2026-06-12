@@ -27,6 +27,9 @@ console.log(`📁 Creating zip: ${zipFileName}`);
 
 // Use Node.js built-in zip functionality or fallback to system zip
 try {
+  // The Unix zip command updates existing archives, which can retain stale build files.
+  fs.rmSync(zipPath, { force: true });
+
   // Check if we're on Windows or Unix-like system
   const isWindows = process.platform === 'win32';
 

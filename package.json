@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-replypal",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Chrome extension to extract messages from WhatsApp Web and reply directly from the popup",
   "main": "src/popup/popup.js",
   "scripts": {
@@ -8,7 +8,9 @@
     "build:dev": "npm run build",
     "clean": "rm -rf build/",
     "zip": "node scripts/zip.js",
-    "dev": "npm run build"
+    "dev": "npm run build",
+    "test": "node --test",
+    "check": "node --check src/shared/core.js && node --check src/content/content.js && node --check src/popup/popup.js && node --check scripts/build.js && node --check scripts/zip.js && npm test && npm run build && node scripts/validate-build.js"
   },
   "keywords": [
     "whatsapp",
@@ -25,5 +27,8 @@
   "bugs": {
     "url": "https://github.com/yourusername/whatsapp-replypal/issues"
   },
-  "homepage": "https://github.com/yourusername/whatsapp-replypal#readme"
+  "homepage": "https://github.com/yourusername/whatsapp-replypal#readme",
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
 }

@@ -5,7 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.1] - [Current Date] - Performance & Privacy Improvements
+## [1.0.2] - 2026-06-12 - WhatsApp DOM Compatibility
+
+### Fixed
+- Updated message extraction for the current WhatsApp Web DOM.
+- Corrected incoming/outgoing message display and sender-name handling.
+- Removed WhatsApp accessibility annotations from displayed names.
+- Improved private and group chat title detection.
+- Treated WhatsApp loading as a normal state instead of an error.
+- Fixed production build paths and deterministic ZIP packaging.
+
+### Technical Improvements
+- Added automated DOM, date parsing, security, and packaging regression tests.
+- Added semantic selector fallbacks and safer popup rendering.
+- Added build-reference validation.
+
+## [1.0.1] - 2025-12-01 - Performance & Privacy Improvements
 
 ### Changed
 - **Removed Caching**: Eliminated popup display caching for always-fresh message data

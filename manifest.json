@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp ReplyPal",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Extract latest messages from WhatsApp Web chats and reply directly from the extension popup.",
   "permissions": [
     "activeTab",
@@ -14,7 +14,7 @@
   "content_scripts": [
     {
       "matches": ["https://web.whatsapp.com/*"],
-      "js": ["src/content/content.js"],
+      "js": ["src/shared/core.js", "src/content/content.js"],
       "run_at": "document_idle"
     }
   ],

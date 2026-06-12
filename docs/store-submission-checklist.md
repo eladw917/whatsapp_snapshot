@@ -24,7 +24,7 @@
 
 ### 📋 Required Information
 - **Extension Name**: WhatsApp ReplyPal
-- **Version**: 1.0.0
+- **Version**: 1.0.2
 - **Description**: See `docs/store-listing.md`
 - **Category**: Productivity
 - **Languages**: English (primary), supports RTL languages
@@ -41,7 +41,7 @@
 - [ ] **Marquee Promo Tile**: 1400x560 PNG (optional)
 
 ### 📁 Package Requirements
-- [x] **ZIP File**: Use `npm run zip` to create `whatsapp-replypal-v1.0.0.zip`
+- [x] **ZIP File**: Use `npm run zip` to create `whatsapp-replypal-v1.0.2.zip`
 - [x] **Manifest V3**: Extension uses Manifest V3
 - [x] **Single Purpose**: Clear, focused functionality
 - [x] **Minimal Permissions**: Only necessary permissions declared
